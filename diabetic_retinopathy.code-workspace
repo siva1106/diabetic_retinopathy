@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../../../SharedWithMe/8401/facultyApp"
 		}
 	],
 	"settings": {}

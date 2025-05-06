@@ -1,7 +1,7 @@
 # Import the necessary packages
 using CSV
 using DataFrames
-
+bb
 # Specify the path to your CSV file
 # (Can be a relative path like this, or an absolute path like "/home/user/data/my_data.csv")
 filepath = "diabetic_retinopathy.csv"
@@ -15,6 +15,7 @@ filepath = "diabetic_retinopathy.csv"
     # Print the DataFrame to see the contents
     # println("Successfully read CSV into DataFrame:")
     println(df.Hornerin)
+    
 
     # You can now work with the DataFrame 'df'
 #     println("\nAccessing data:")
@@ -26,4 +27,4 @@ filepath = "diabetic_retinopathy.csv"
 #     println("Error reading CSV file: ", filepath)
 #     showerror(stdout, e)
 #     println()
-# end
+# end                
