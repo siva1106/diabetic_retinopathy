@@ -105,3 +105,4 @@ pretty_table(
     alignment=:c,
     crop=:none
 )
+CSV.write("diabetic_retinopathy_encoded.csv", data_encoded; header=true)
