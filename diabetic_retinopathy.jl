@@ -1,30 +1,71 @@
-# Import the necessary packages
 using CSV
 using DataFrames
-bb
-# Specify the path to your CSV file
-# (Can be a relative path like this, or an absolute path like "/home/user/data/my_data.csv")
-filepath = "diabetic_retinopathy.csv"
+using Impute
+using StatsBase
+using Random
+using PrettyTables
+using MLJ
+using MLJBase
 
-# try
-    # Read the CSV file into a DataFrame
-    # CSV.read automatically handles headers and tries to infer data types.
-    # It also recognizes standard missing values (like the empty field for Charlie).
-    df = CSV.read(filepath, DataFrame)
+# Load the dataset
+data = CSV.read("diabetic_retinopathy.csv", DataFrame)
 
-    # Print the DataFrame to see the contents
-    # println("Successfully read CSV into DataFrame:")
-    println(df.Hornerin)
-    
+# Clean column names by removing leading/trailing whitespace
+rename!(data, Symbol.(strip.(string.(names(data)))))
 
-    # You can now work with the DataFrame 'df'
-#     println("\nAccessing data:")
-#     println("Value for Bob: ", df[df.Name .== "Bob", :Value][1]) # Example access
-#     println("Data Types of columns:")
-#     println(eltype.(eachcol(df))) # Show inferred types per column
+# Display basic information using PrettyTables
+println("Dataset Info:")
+pretty_table(describe(data); backend=Val(:text), tf=tf_unicode, show_row_number=true)
+println("First few rows:")
+pretty_table(first(data, 5); backend=Val(:text), tf=tf_unicode, show_row_number=true)
 
-# catch e
-#     println("Error reading CSV file: ", filepath)
-#     showerror(stdout, e)
-#     println()
-# end                
+# Check class distribution using PrettyTables
+println("Class Distribution:")
+class_dist = combine(groupby(data, :Clinical_Group), nrow => :count)
+pretty_table(class_dist; backend=Val(:text), tf=tf_unicode, show_row_number=true)
+
+# Replace "NIL" and "Nil" with missing
+for col in names(data)
+    data[!, col] = replace(data[!, col], "NIL" => missing, "Nil" => missing, "NaN" => missing)
+end
+
+# Separate numerical and categorical columns
+numerical_cols = [:Hornerin, :SFN, :Age, :Diabetic_Duration, :eGFR, :HB, :EAG, :FBS, :RBS, :HbA1C, 
+                  :Systolic_BP, :Diastolic_BP, :BUN, :Total_Protein, :Serum_Albumin, :Serum_Globulin, 
+                  :AG_Ratio, :Serum_Creatinine, :Sodium, :Potassium, :Chloride, :Bicarbonate, :SGOT, 
+                  :SGPT, :Alkaline_Phosphatase, :T_Bil, :D_Bil, :HDL, :LDL, :CHOL, :Chol_HDL_ratio, :TG]
+categorical_cols = [:Gender, :Albuminuria]
+
+# Impute numerical columns with srs
+for col in numerical_cols
+    if eltype(data[!, col]) <: Union{Missing, Number}
+        rng = MersenneTwister(42)
+        data[!, col] = Impute.srs(data[!, col], rng=rng)
+    end
+end
+
+# Impute categorical columns with mode
+for col in categorical_cols
+    if eltype(data[!, col]) <: Union{Missing, String}
+        mode_val = mode(skipmissing(data[!, col]))
+        data[!, col] = coalesce.(data[!, col], mode_val)
+    end
+end
+
+# Encode categorical variables
+data[!, :Clinical_Group] = categorical(data[!, :Clinical_Group])
+hot_encoder = OneHotEncoder(; features=[:Gender, :Albuminuria], drop_last=false)
+mach = machine(hot_encoder, data)
+fit!(mach)
+data_encoded = MLJBase.transform(mach, data)
+data_encoded = DataFrames.select(data_encoded, Not([:Gender, :Albuminuria]))
+
+# Display the encoded DataFrame using PrettyTables
+println("Encoded Dataset (first 5 rows):")
+pretty_table(first(data_encoded, 5); 
+             backend=Val(:text), 
+             tf=tf_unicode, 
+             show_row_number=true, 
+             alignment=:c, 
+             hlines=:all, 
+             vlines=:all)
